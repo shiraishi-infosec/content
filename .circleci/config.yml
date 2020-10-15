@@ -554,7 +554,7 @@ jobs:
                 command: |
                   if ./Tests/scripts/is_ami.sh ;
                     then
-                      python3 ./Tests/scripts/run_content_installation.py
+                      echo "installation with user data"
                     else
                       ./Tests/lastest_server_build_scripts/run_installer_on_instance.sh
                   fi

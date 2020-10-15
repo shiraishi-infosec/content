@@ -482,18 +482,16 @@ jobs:
               else
                 ./Tests/lastest_server_build_scripts/download_demisto_conf.sh
             fi
-      - run:
-          name: Download Artifacts
-          when: always
-          command: |
-            if ./Tests/scripts/is_ami.sh ;
-              then
-                echo "Using AMI - Not downloading artifacts"
-
-              else
-                ./Tests/scripts/server_get_artifact.sh $SERVER_CI_TOKEN
-                cp demistoserver.sh ./Tests/scripts/awsinstancetool/ansibleinstall/demistoserver.sh
-            fi
+      - when:
+          # If this is an ami run - No need to download server artifacts
+          condition: << pipeline.parameters.non_ami_run >>
+          steps:
+            - run:
+                name: Download Artifacts
+                when: always
+                command: |
+                  ./Tests/scripts/server_get_artifact.sh $SERVER_CI_TOKEN
+                  cp demistoserver.sh ./Tests/scripts/awsinstancetool/ansibleinstall/demistoserver.sh
       - *collect_test_list_and_content_packs
       - *calculate_packs_dependencies
       - unless:
@@ -548,16 +546,15 @@ jobs:
                       . ./Tests/scripts/server_get_artifact.sh $SERVER_CI_TOKEN
                       python3 ./Tests/scripts/awsinstancetool/aws_instance_tool.py -envType CustomBuild -custombuild true -circleurl $SERVER_DOWNLOAD_LINK -circleToken $SERVER_CI_TOKEN -timetolive $TTL -outfile ./env_results.json
                   fi
+      - when:
+          # If this is an ami run - the instance setup will happen in the instance's user-data instead
+          condition: << pipeline.parameters.non_ami_run >>
+          steps:
             - run:
                 name: Setup Instance
                 when: on_success
                 command: |
-                  if ./Tests/scripts/is_ami.sh ;
-                    then
-                      echo "installation with user data"
-                    else
-                      ./Tests/lastest_server_build_scripts/run_installer_on_instance.sh
-                  fi
+                  ./Tests/lastest_server_build_scripts/run_installer_on_instance.sh
             - *store_artifacts
       - *persist_to_workspace
   Server 4_5:

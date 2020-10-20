@@ -6,6 +6,7 @@ import json
 import glob
 import sys
 import demisto_client
+import concurrent.futures
 from demisto_client.demisto_api.rest import ApiException
 from threading import Thread, Lock
 from demisto_sdk.commands.common.tools import print_color, LOG_COLORS, run_threads_list, print_error
@@ -228,26 +229,20 @@ def install_packs(client, host, prints_manager, thread_index, packs_to_install, 
                 upload_zipped_packs(client=client, host=host, prints_manager=prints_manager,
                                     thread_index=thread_index, pack_path=local_pack)
     else:
-        threads_list = []
-        lock = Lock()
-        for pack in packs_to_install:
-            thread = Thread(
-                target=pack,
-                kwargs={
-                    'client': client,
-                    'prints_manager': prints_manager,
-                    'ignoreWarnings': True,
-                    'thread_index': thread_index,
-                    'lock': lock
-                }
-            )
-            threads_list.append(thread)
-        run_threads_list(threads_list)
+        results = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            for pack in packs_to_install:
+                results.append(executor.submit(
+                    fn=demisto_client.generic_request_func(client,
+                                                           path='/contentpacks/marketplace/install',
+                                                           method='POST',
+                                                           body=pack,
+                                                           accept='application/json',
+                                                           request_timeout=request_timeout)))
         # request_data = {
         #     'packs': packs_to_install,
         #     'ignoreWarnings': True
         # }
-
         packs_to_install_str = ', '.join([pack['id'] for pack in packs_to_install])
         message = 'Installing the following packs in server {}:\n{}'.format(host, packs_to_install_str)
         prints_manager.add_print_job(message, print_color, thread_index, LOG_COLORS.GREEN, include_timestamp=True)
@@ -255,12 +250,15 @@ def install_packs(client, host, prints_manager, thread_index, packs_to_install, 
 
         # make the pack installation request
         try:
-            response_data, status_code, _ = demisto_client.generic_request_func(client,
-                                                                                path='/contentpacks/marketplace/install',
-                                                                                method='POST',
-                                                                                body=threads_list,
-                                                                                accept='application/json',
-                                                                                _request_timeout=request_timeout)
+            for future in concurrent.futures.as_completed(results):
+                print(future)
+                sys.exit(0)
+            # response_data, status_code, _ = demisto_client.generic_request_func(client,
+            #                                                                     path='/contentpacks/marketplace/install',
+            #                                                                     method='POST',
+            #                                                                     body=request_data,
+            #                                                                     accept='application/json',
+            #                                                                     _request_timeout=request_timeout)
 
             if 200 <= status_code < 300:
                 message = 'Packs were successfully installed!\n'

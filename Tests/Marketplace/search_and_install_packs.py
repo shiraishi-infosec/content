@@ -228,10 +228,25 @@ def install_packs(client, host, prints_manager, thread_index, packs_to_install, 
                 upload_zipped_packs(client=client, host=host, prints_manager=prints_manager,
                                     thread_index=thread_index, pack_path=local_pack)
     else:
-        request_data = {
-            'packs': packs_to_install,
-            'ignoreWarnings': True
-        }
+        threads_list = []
+        lock = Lock()
+        for pack in packs_to_install:
+            thread = Thread(
+                target=pack,
+                kwargs={
+                    'client': client,
+                    'prints_manager': prints_manager,
+                    'ignoreWarnings': True,
+                    'thread_index': thread_index,
+                    'lock': lock
+                }
+            )
+            threads_list.append(thread)
+        run_threads_list(threads_list)
+        # request_data = {
+        #     'packs': packs_to_install,
+        #     'ignoreWarnings': True
+        # }
 
         packs_to_install_str = ', '.join([pack['id'] for pack in packs_to_install])
         message = 'Installing the following packs in server {}:\n{}'.format(host, packs_to_install_str)
@@ -243,7 +258,7 @@ def install_packs(client, host, prints_manager, thread_index, packs_to_install, 
             response_data, status_code, _ = demisto_client.generic_request_func(client,
                                                                                 path='/contentpacks/marketplace/install',
                                                                                 method='POST',
-                                                                                body=request_data,
+                                                                                body=threads_list,
                                                                                 accept='application/json',
                                                                                 _request_timeout=request_timeout)
 

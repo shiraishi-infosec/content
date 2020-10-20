@@ -238,7 +238,7 @@ def install_packs(client, host, prints_manager, thread_index, packs_to_install, 
                                                            method='POST',
                                                            body=pack,
                                                            accept='application/json',
-                                                           request_timeout=request_timeout)))
+                                                           _request_timeout=request_timeout)))
         # request_data = {
         #     'packs': packs_to_install,
         #     'ignoreWarnings': True

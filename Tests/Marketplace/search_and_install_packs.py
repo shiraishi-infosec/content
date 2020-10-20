@@ -251,7 +251,8 @@ def install_packs(client, host, prints_manager, thread_index, packs_to_install, 
         # make the pack installation request
         try:
             for future in concurrent.futures.as_completed(results):
-                print(future)
+                pack_status = future.result()
+                print(pack_status)
                 sys.exit(0)
             # response_data, status_code, _ = demisto_client.generic_request_func(client,
             #                                                                     path='/contentpacks/marketplace/install',
